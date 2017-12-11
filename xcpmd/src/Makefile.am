@@ -86,13 +86,13 @@ VNUM=${shell @GREP@ ${VCHK} ${VFD}/version-md5sums | @AWK@ '{ print $$2 }'  }
 VDEF=${shell echo `cat ${VFD}/version-major`.`cat ${VFD}/version-minor`.`cat ${VFD}/version-micro` }
 
 rpcgen/%_client.h: ${IDLDIR}/%.xml
-	mkdir rpcgen || true
-	${XC_RPCGEN} -c -o rpcgen/ $<
+	mkdir -p rpcgen
+	${XC_RPCGEN} --templates-dir=${RPCGEN_TEMPLATES} -c -o rpcgen/ $<
 
 
 rpcgen/%_server_marshall.h rpcgen/%_server_obj.h rpcgen/%_server_obj.c : ${IDLDIR}/%.xml
-	mkdir rpcgen || true
-	${XC_RPCGEN} -s -o rpcgen/ $<
+	mkdir -p rpcgen
+	${XC_RPCGEN} --templates-dir=${RPCGEN_TEMPLATES} -s -o rpcgen/ $<
 
 protos:
 	echo > prototypes.h
