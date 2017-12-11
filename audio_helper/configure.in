@@ -43,10 +43,6 @@ PACKAGE=audio_helper
 
 AM_INIT_AUTOMAKE($PACKAGE,$VERSION)
 
-PKG_CHECK_MODULES(X, x11)
-AC_SUBST(X_CFLAGS)
-AC_SUBST(X_LIBS)
-
 AM_CONFIG_HEADER(src/config.h)
 
 # Checks for header files.
