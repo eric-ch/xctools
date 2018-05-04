@@ -238,7 +238,7 @@ int find_efi_entry_location(const char *efi_entry, uint32_t length, size_t *loca
     FILE *systab = NULL;
     char efiline[EFI_LINE_SIZE];
     char *val;
-    off_t loc = 0;
+    unsigned long loc = 0;
 
     *location = 0;
 
@@ -250,7 +250,7 @@ int find_efi_entry_location(const char *efi_entry, uint32_t length, size_t *loca
             if ( strncmp(efiline, efi_entry, 6) == 0 )
             {
                 val = memchr(efiline, '=', strlen(efiline)) + 1;
-                loc = strtol(val, NULL, 0);
+                loc = strtoul(val, NULL, 0);
                 break;
             }
         }
