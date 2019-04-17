@@ -1,0 +1,180 @@
+language: c
+
+before_install:
+- sudo apt-get update
+- sudo apt-get install -y build-essential autoconf automake libdbus-1-dev libjson-c-dev libxml2-dev libssl-dev zlib1g-dev screen gdb
+- wget https://github.com/warmcat/libwebsockets/archive/v3.0.0.tar.gz
+- tar xzf v3.0.0.tar.gz
+- cd libwebsockets-3.0.0
+- mkdir build
+- cd build
+- cmake ..
+- make
+- sudo make install
+- cd ../../
+- wget https://github.com/libuv/libuv/archive/v1.11.0.tar.gz
+- tar xzf v1.11.0.tar.gz
+- cd libuv-1.11.0
+- mkdir -p m4
+- touch m4/libuv-extra-automake-flags.m4
+  #- autoreconf --verbose --install --force
+- ./autogen.sh
+- ./configure
+- make
+- sudo make install
+- cd ..
+
+script:
+- cd rpc-broker
+- autoreconf --verbose --install --force
+- ./configure
+- make
+- mv src/rpc-broker .
+- export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+- ulimit -c unlimited -S
+- sudo cp test-policies/test_1.rules /etc/rpc-broker.rules
+- ./rpc-broker -r 5555 &
+- RPCBPID=$!
+#
+# Test #1, call ListNames on system dbus directly and through rpc-broker
+# The results need to be sanitized to be comparable, hence the sed
+# Make sure there's no diff between the two results.
+#
+- dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames | sed 's/[0-9]\+\.[0-9]\+/xx.xx/g' | sort > /tmp/t1
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames | sed 's/[0-9]\+\.[0-9]\+/xx.xx/g' | sort > /tmp/t2
+- diff -u /tmp/t1 /tmp/t2 ; RES=$?
+#
+# End of Test #1, the result is in $RES
+#
+- test $RES -eq 0
+#
+# Test #2, remove the policy file and then repeat the same calls as above.
+# This time the results should vary, where rpc-broker blocks the call.
+#
+- sudo rm /etc/rpc-broker.rules
+- kill -1 $RPCBPID
+- dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames | sed 's/[0-9]\+\.[0-9]\+/xx.xx/g' | sort > /tmp/t1
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames | sed 's/[0-9]\+\.[0-9]\+/xx.xx/g' | sort > /tmp/t2
+- diff -u /tmp/t1 /tmp/t2 ; RES=$?
+- test $RES -ne 0
+
+#
+# Test #3, have a policy which allows all traffic to a specified interface but a
+# subsequent rule restrictions a specific member.  The test is set-up to show
+# initially all traffic is blocked and after the policy is deployed, traffic is
+# allowed exception for the "deny" member given in the policy.
+- dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames ; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>first-fail.txt || true 
+- diff -u first-fail.txt test-policies/dbus-connection-failure.txt ; RES=$? 
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.GetId 2>fail.txt || true
+- diff -u fail.txt test-policies/dbus-connection-failure.txt ; RES=$? 
+- test $RES -eq 0
+
+- sudo cp test-policies/test_2.rules /etc/rpc-broker.rules
+- kill -1 $RPCBPID
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames ; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.GetId 2>fails.txt || true 
+- diff -u test-policies/blocked-interface-reply.txt fails.txt ; RES=$?
+- test $RES -eq 0
+
+#
+# Test #4, in this test the first policy rule restricts all traffic to a
+# destination and path.  The following rules allow only messages to two
+# specific members that are now not being blocked.
+#
+- dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect 2>first-fail.txt || true 
+- diff -u first-fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- test $RES -eq 0
+
+- sudo cp test-policies/test_3.rules /etc/rpc-broker.rules
+- kill -1 $RPCBPID
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect; RES=$?
+- test $RES -eq 0
+
+#
+# Test #5, this test demonstrates a policy which blocks with fine granularity,
+# down to disallowing only a certain method of a given interface.  Setup to
+# show all calls are initially blocked and then after the policy is put in 
+# place, only calls to a specific method are blocked.
+#
+- dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect 2>first-fail.txt || true 
+- diff -u first-fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>fail.txt || true 
+- diff -u fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- test $RES -eq 0
+
+- sudo cp test-policies/test_4.rules /etc/rpc-broker.rules
+- kill -1 $RPCBPID
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>fail.txt || true 
+- diff -u test-policies/blocked-interface-reply.txt fails.txt ; RES=$?
+- test $RES -eq 0
+
+#
+# Test #6, this is a blanket test to "allow all" *except* for one specific
+# interface.  Setup is to show that all calls are initially blocked and then 
+# after all are allowed with the exception being for the black-listed interface.
+#
+- dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect 2>first-fail.txt || true 
+- diff -u first-fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>fail.txt || true 
+- diff -u fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- test $RES -eq 0
+
+- sudo cp test-policies/test_5.rules /etc/rpc-broker.rules
+- kill -1 $RPCBPID
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect 2>first-fail.txt || true
+- diff -u first-fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames; RES=$? 
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.GetId; RES=$? 
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListActivatableNames; RES=$? 
+- test $RES -eq 0
+
+#
+# Test #7, this is a blanket test to "deny all" *except* for one specific
+# interface.  Setup is to show that all calls are initially allowed and then 
+# after all are denied except for the one white-listed interface.
+#
+- sudo cp test-policies/test_6_allow.rules /etc/rpc-broker.rules
+- kill -1 $RPCBPID
+- dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames; RES=$? 
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.GetId; RES=$?
+- test $RES -eq 0
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListActivatableNames; RES=$?
+- test $RES -eq 0
+
+- sudo cp test-policies/test_6_deny.rules /etc/rpc-broker.rules
+- kill -1 $RPCBPID
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.Introspectable.Introspect
+- test $RES -eq 0 
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>fail.txt || true
+- diff -u fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.GetId 2>third-fail.txt || true 
+- diff -u third-fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- test $RES -eq 0 
+- DBUS_SYSTEM_BUS_ADDRESS=tcp:host=127.0.0.1,port=5555 dbus-send --system --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListActivatableNames 2>fourth-fail.txt || true 
+- diff -u fourth-fail.txt test-policies/blocked-interface-reply.txt ; RES=$? 
+- test $RES -eq 0 
+
+# End of testsuite
+- kill $RPCBPID
+
+after_failure:
+# http://jsteemann.github.io/blog/2014/10/30/getting-core-dumps-of-failed-travisci-builds/
+- COREFILE=$(find . -maxdepth 1 -name "core*" | head -n 1)
+- if [[ -f "$COREFILE" ]]; then gdb -c "$COREFILE" rpc-broker -ex "thread apply all bt" -ex "set pagination 0" -batch; fi

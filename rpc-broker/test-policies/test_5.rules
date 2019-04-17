@@ -1,0 +1,2 @@
+allow all
+deny destination org.freedesktop.DBus interface org.freedesktop.DBus.Introspectable

@@ -1,0 +1,3 @@
+allow destination org.freedesktop.DBus
+deny destination org.freedesktop.DBus path /org/freedesktop/DBus interface org.freedesktop.DBus member ListNames
+allow out-any

@@ -1,0 +1,5 @@
+deny destination org.freedesktop.DBus path /org/freedesktop/DBus
+allow destination org.freedesktop.DBus path /org/freedesktop/DBus interface org.freedesktop.DBus member Hello
+allow destination org.freedesktop.DBus path /org/freedesktop/DBus interface org.freedesktop.DBus.Introspectable member Introspect 
+allow out-any
+
