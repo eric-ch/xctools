@@ -319,32 +319,6 @@ void pci_lib_cleanup(void)
     pci_acc = NULL;
 }
 
-uint8_t *map_phys_mem(size_t phys_addr, size_t length)
-{
-    uint32_t page_offset = phys_addr % sysconf(_SC_PAGESIZE);
-    uint8_t *addr;
-    int fd;
-
-    fd = open("/dev/mem", O_RDONLY);
-    if ( fd == -1 )
-        return NULL;
-
-    addr = (uint8_t*)mmap(0, page_offset + length, PROT_READ, MAP_PRIVATE, fd, phys_addr - page_offset);
-    close(fd);
-
-    if ( addr == MAP_FAILED )
-        return NULL;
-
-    return addr + page_offset;
-}
-
-void unmap_phys_mem(uint8_t *addr, size_t length)
-{
-    uint32_t page_offset = (size_t)addr % sysconf(_SC_PAGESIZE);
-
-    munmap(addr - page_offset, length + page_offset);
-}
-
 unsigned int xenstore_read_uint(char *path)
 {
     char *buf;
