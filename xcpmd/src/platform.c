@@ -145,6 +145,47 @@ struct smbios_system_info {
     uint8_t family_str;
 } __attribute__ ((packed));
 
+static void *smbios_read_entry(char *id)
+{
+    char *buf;
+    char path[PATH_MAX];
+    int ret, off, len = 4096;
+
+    sprintf(path, "/sys/class/dmi/id/%s", id);
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        xcpmd_log(LOG_ERR, "Could not open %s", path);
+        return NULL;
+    }
+
+    buf = malloc(len);
+    if (buf == NULL) {
+        xcpmd_log(LOG_ERR, "%s malloc failed.", __func__);
+        return NULL;
+    }
+
+    off = 0;
+ read_more:
+    ret = read(fd, buf + off, len - off);
+    if (ret == -1) {
+        xcpmd_log(LOG_ERR, "Error reading %s: %d %s", path, errno,
+                  strerror(errno));
+        return NULL;
+    } else if (ret == 0) {
+        /* End of file */
+    } else if (ret < len - off) {
+        off += ret;
+        goto read_more;
+    }
+
+    close(fd);
+
+    /* replace newline with NUL terminator */
+    buf[off - 1] = '\0';
+
+    return buf;
+}
+
 static int smbios_entry_point(struct smbios_locator *locator, uint8_t *entry_point, int is_eps)
 {
     uint8_t cs;
@@ -305,46 +346,22 @@ static void *smbios_locate_structure_instance(struct smbios_locator *locator,
 
 static void setup_software_bcl_and_input_quirks(void)
 {
-    struct smbios_locator locator;
-    struct smbios_system_info *system_info;
-    struct smbios_bios_info *bios_info;
-    uint32_t length;
-    char *manufacturer, *product, *vendor, *bios_version;
+    char *manufacturer, *product, *bios_version;
     uint32_t pci_val;
     uint16_t pci_vendor_id, pci_gmch_id;
-    int rc;
 
-    memset(&locator, 0x0, sizeof (locator));
-
-    /* Read SMBIOS information */
-    rc = smbios_locate_structures(&locator);
-    if ( rc != 0 )
-    {
-        xcpmd_log(LOG_WARNING, "%s failed to find SMBIOS info\n", __FUNCTION__);
-        goto out;
+    manufacturer = smbios_read_entry("sys_vendor");
+    if (manufacturer == NULL) {
+        manufacturer = strdup("Unknown manufacturer");
     }
-
-    system_info =
-        smbios_locate_structure_instance(&locator, SMBIOS_TYPE_SYSTEM_INFO, 1, &length);
-    if ( system_info == NULL )
-    {
-        xcpmd_log(LOG_WARNING, "%s could not locate SMBIOS_TYPE_SYSTEM_INFO table??\n", __FUNCTION__);
-        goto out;
+    product = smbios_read_entry("product_name");
+    if (product == NULL) {
+        product = strdup("Unknown product");
     }
-
-    manufacturer = (char *)system_info + system_info->header.length;
-    product = manufacturer + strlen(manufacturer) + 1;
-
-    bios_info =
-        smbios_locate_structure_instance(&locator, SMBIOS_TYPE_BIOS_INF0, 1, &length);
-    if ( bios_info == NULL )
-    {
-        xcpmd_log(LOG_WARNING, "%s could not locate SMBIOS_TYPE_BIOS_INF0 table??\n", __FUNCTION__);
-        goto out;
+    bios_version = smbios_read_entry("bios_version");
+    if (bios_version == NULL) {
+        bios_version = strdup("Unknown bios_version");
     }
-
-    vendor = (char *)bios_info + bios_info->header.length;
-    bios_version = vendor + strlen(vendor) + 1;
 
     /* Read PCI information */
     pci_val = pci_host_read_dword(0, 0, 0, PCI_VENDOR_DEVICE_OFFSET);
@@ -430,8 +447,9 @@ static void setup_software_bcl_and_input_quirks(void)
     xcpmd_log(LOG_INFO, "Platform manufacturer: %s product: %s BIOS version: %s\n", manufacturer, product, bios_version);
 
 out:
-    if ( locator.addr != 0 )
-        unmap_phys_mem(locator.addr, locator.length);
+    free(product);
+    free(manufacturer);
+    free(bios_version);
 }
 
 /* todo:
