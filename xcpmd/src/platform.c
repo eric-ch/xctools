@@ -40,12 +40,6 @@
 #define MANUFACTURER_FUJTSU      "fujtsu"
 #define MANUFACTURER_APPLE       "Apple Inc."
 
-/* Dell 5X20 series */
-#define DELL_E5220               "E5220"
-#define DELL_E5420               "E5420"
-#define DELL_E5520               "E5520"
-#define TOSHIBA_TECRA            "TECRA"
-
 /* PCI Values */
 #define PCI_VENDOR_DEVICE_OFFSET 0x0
 #define PCI_CLASS_REV_OFFSET     0x8
@@ -61,290 +55,71 @@
 #define PCI_DEVICE_ID_WORD(v) ((uint16_t)(0xffff & (v >> 16)))
 #define PCI_CLASS_ID_WORD(v) ((uint16_t)(0xffff & (v >> 16)))
 
-#define SCAN_ROM_BIOS_BASE 0xF0000
-#define SCAN_ROM_BIOS_SIZE 0x10000
-
 uint32_t pm_quirks = PM_QUIRK_NONE;
 uint32_t pm_specs = PM_SPEC_NONE;
-
-/* SMBIOS Lengths */
-#define SMBIOS_SM_LENGTH       0x20
-#define SMBIOS_DMI_LENGTH      0x0F
-#define SMBIOS_HEADER_LENGTH   0x04
-
-/* SMBIOS Offsets */
-#define SMBIOS_EPS_STRING      0x00 /* 4 BYTES "_SM_" anchor string */
-#define SMBIOS_EPS_CHECKSUM    0x04 /* BYTE CS sums to zero when added to bytes in EPS */
-#define SMBIOS_EPS_LENGTH      0x05 /* BYTE Length of the Entry Point Structure */
-#define SMBIOS_MAJOR_VERSION   0x06 /* BYTE */
-#define SMBIOS_MINOR_VERSION   0x07 /* BYTE */
-#define SMBIOS_MAX_STRUCT_SIZE 0x08 /* WORD Size of the largest SMBIOS structure */
-#define SMBIOS_REVISION        0x0A /* BYTE */
-#define SMBIOS_FORMATTED_AREA  0x0B /* 5 BYTES, see spec for revision */
-#define SMBIOS_IEPS_STRING     0x10 /* 5 BYTES "_DMI_" intermediate anchor string */
-#define SMBIOS_IEPS_CHECKSUM   0x15 /* BYTE CS sums to zero when added to bytes in IEPS */
-#define SMBIOS_TABLE_LENGTH    0x16 /* WORD Total length of SMBIOS Structure Table */
-#define SMBIOS_TABLE_ADDRESS   0x18 /* DWORD The 32-bit physical starting address of the read-only SMBIOS Structures */
-#define SMBIOS_STRUCT_COUNT    0x1C /* WORD Total number of structures present in the SMBIOS Structure Table */
-#define SMBIOS_BCD_REVISION    0x1E /* BYTE */
-
-#define SMBIOS_STRUCT_TYPE     0x00 /* BYTE Specifies the type of structure */
-#define SMBIOS_STRUCT_LENGTH   0x01 /* BYTE Specifies the length of the formatted area of the structure */
-#define SMBIOS_STRUCT_HANDLE   0x02 /* WORD Specifies 16-bit number in the range 0 to 0FFFEh */
-
-/* SMBIOS Types */
-#define SMBIOS_TYPE_BIOS_INF0    0
-#define SMBIOS_TYPE_SYSTEM_INFO  1
-#define SMBIOS_TYPE_BASE_BOARD   2
-#define SMBIOS_TYPE_ENCLOSURE    3
-#define SMBIOS_TYPE_INACTIVE     126
-#define SMBIOS_TYPE_EOT          127
-#define SMBIOS_TYPE_VENDOR_MIN   128
-#define SMBIOS_TYPE_VENDOR_MAX   255
 
 /* Xenstore permissions */
 #define XENSTORE_READ_ONLY      "r0"
 
-struct smbios_locator {
-    size_t phys_addr;
-    uint16_t length;
-    uint16_t count;
-    uint8_t *addr;
-};
-
-struct smbios_header {
-    uint8_t type;
-    uint8_t length;
-    uint16_t handle;
-} __attribute__ ((packed));
-
-struct smbios_bios_info {
-    struct smbios_header header;
-    uint8_t vendor_str;
-    uint8_t version_str;
-    uint16_t starting_address_segment;
-    uint8_t release_date_str;
-    uint8_t rom_size;
-    uint8_t characteristics[8];
-    uint8_t characteristics_extension_bytes[2];
-    uint8_t major_release;
-    uint8_t minor_release;
-    uint8_t embedded_controller_major;
-    uint8_t embedded_controller_minor;
-} __attribute__ ((packed));
-
-struct smbios_system_info {
-    struct smbios_header header;
-    uint8_t manufacturer_str;
-    uint8_t product_name_str;
-    uint8_t version_str;
-    uint8_t serial_number_str;
-    uint8_t uuid[16];
-    uint8_t wake_up_type;
-    uint8_t sku_str;
-    uint8_t family_str;
-} __attribute__ ((packed));
-
-static int smbios_entry_point(struct smbios_locator *locator, uint8_t *entry_point, int is_eps)
+static void *smbios_read_entry(char *id)
 {
-    uint8_t cs;
-    uint32_t count;
+    char *buf;
+    char path[PATH_MAX];
+    int ret, off, len = 4096;
 
-    if (is_eps)
-    {
-        /* checksum sanity check on _SM_ entry point */
-        for ( cs = 0, count = 0; count < entry_point[SMBIOS_EPS_LENGTH]; count++ )
-            cs += entry_point[count];
-        if ( cs != 0 )
-        {
-            xcpmd_log(LOG_WARNING, "Invalid _SM_ checksum\n");
-            return -1;
-        }
-        /* nothing else really interesting in the EPS, move to the IEPS */
-        entry_point += SMBIOS_IEPS_STRING;
-        if ( memcmp(entry_point, "_DMI_", 5) != 0 )
-        {
-            xcpmd_log(LOG_WARNING, "Entry point structure missing _DMI_ anchor\n");
-            return -1;
-        }
+    sprintf(path, "/sys/class/dmi/id/%s", id);
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        xcpmd_log(LOG_ERR, "Could not open %s", path);
+        return NULL;
     }
 
-    /* entry point is IEPS, do checksum of this portion */
-    for ( cs = 0, count = 0; count < SMBIOS_DMI_LENGTH; count++ )
-        cs += entry_point[count];
-    if ( cs != 0 )
-    {
-        xcpmd_log(LOG_WARNING, "Invalid _DMI_ checksum\n");
-        return -1;
+    buf = malloc(len);
+    if (buf == NULL) {
+        xcpmd_log(LOG_ERR, "%s malloc failed.", __func__);
+        return NULL;
     }
 
-    locator->phys_addr = (*(uint32_t*)(entry_point + SMBIOS_TABLE_ADDRESS - SMBIOS_IEPS_STRING));
-    locator->length = (*(uint16_t*)(entry_point + SMBIOS_TABLE_LENGTH - SMBIOS_IEPS_STRING));
-    locator->count = (*(uint16_t*)(entry_point + SMBIOS_STRUCT_COUNT - SMBIOS_IEPS_STRING));
-
-    /* sanity */
-    if ( (locator->length < 4) || (locator->count == 0) ) {
-        xcpmd_log(LOG_WARNING, "Entry point structure reporting invalid length or count\n");
-        return -1;
+    off = 0;
+ read_more:
+    ret = read(fd, buf + off, len - off);
+    if (ret == -1) {
+        xcpmd_log(LOG_ERR, "Error reading %s: %d %s", path, errno,
+                  strerror(errno));
+        return NULL;
+    } else if (ret == 0) {
+        /* End of file */
+    } else if (ret < len - off) {
+        off += ret;
+        goto read_more;
     }
 
-    locator->addr = map_phys_mem(locator->phys_addr, locator->length);
-    if ( locator->addr == NULL )
-    {
-        xcpmd_log(LOG_ERR, "Failed to map SMBIOS structures at phys="UINT_FMT"\n", locator->phys_addr);
-        return -1;
-    }
+    close(fd);
 
-    return 0;
-}
+    /* replace newline with NUL terminator */
+    buf[off - 1] = '\0';
 
-static int smbios_locate_structures(struct smbios_locator *locator)
-{
-    size_t loc = 0;
-    uint8_t *addr;
-    int rc = -1;
-
-    memset(locator, 0, sizeof(struct smbios_locator));
-
-    /* use EFI tables if present */
-    rc = find_efi_entry_location("SMBIOS", 6, &loc);
-    if ( (rc == 0) && (loc != 0) ) {
-        addr = map_phys_mem(loc, SMBIOS_SM_LENGTH);
-        if ( addr == NULL )
-        {
-            xcpmd_log(LOG_ERR, "Failed to map SMBIOS entry point structure at phys="UINT_FMT"\n", loc);
-            return -1;
-        }
-        rc = smbios_entry_point(locator, addr, 1);
-        unmap_phys_mem(addr, SMBIOS_SM_LENGTH);
-        return rc;
-    }
-
-    /* Locate SMBIOS entry via memory scan of ROM region */
-    addr = map_phys_mem(SCAN_ROM_BIOS_BASE, SCAN_ROM_BIOS_SIZE);
-    if ( addr == NULL )
-    {
-        xcpmd_log(LOG_ERR, "Failed to map ROM BIOS at phys=%x\n", SCAN_ROM_BIOS_BASE);
-        return -1;
-    }
-
-    for ( loc = 0; loc <= (SCAN_ROM_BIOS_SIZE - SMBIOS_SM_LENGTH); loc += 16 ) { /* stop before 0xFFE0 */
-        /* Look for _SM_ signature for newer entry point which preceeds _DMI_, else look for only the older _DMI_ */
-        if ( memcmp(addr + loc, "_SM_", 4) == 0 )
-        {
-            rc = smbios_entry_point(locator, addr + loc, 1);
-            if ( rc == 0 ) /* found it */
-                break;
-        }
-        else if ( memcmp(addr + loc, "_DMI_", 5) == 0 )
-        {
-            rc = smbios_entry_point(locator, addr + loc, 0);
-            if ( rc == 0 ) /* found it */
-                break;
-        }
-    }
-    unmap_phys_mem(addr, SCAN_ROM_BIOS_SIZE);
-
-    return rc;
-}
-
-static void *smbios_locate_structure_instance(struct smbios_locator *locator,
-                                              uint8_t type, uint32_t instance,
-                                              uint32_t *length_out)
-{
-    uint16_t idx;
-    uint8_t *ptr = locator->addr;
-    uint8_t *tail;
-    uint32_t counter = 0;
-    void *table = NULL;
-
-    for ( idx = 0; idx < locator->count; idx++ )
-    {
-        if ( (ptr[SMBIOS_STRUCT_LENGTH] < 4)||
-           ( (ptr + ptr[SMBIOS_STRUCT_LENGTH]) > (ptr + locator->length)) )
-        {
-            xcpmd_log(LOG_ERR, "Invalid SMBIOS table data detected\n");
-            return NULL;
-        }
-
-        /* Run the tail pointer past the end of this struct and all strings */
-        tail = ptr + ptr[SMBIOS_STRUCT_LENGTH];
-        while ( (tail - ptr + 1) < locator->length )
-        {
-            if ( (tail[0] == 0) && (tail[1] == 0) )
-                break;
-            tail++;
-        }
-        tail += 2;
-
-        if ( (ptr[SMBIOS_STRUCT_TYPE] == type) && (++counter == instance) )
-        {
-            table = ptr;
-            if ( length_out != NULL )
-                *length_out = (tail - ptr);
-
-            break;
-        }
-
-        /* test for terminating structure */
-        if ( ptr[SMBIOS_STRUCT_TYPE] == SMBIOS_TYPE_EOT )
-        {
-            /* table is done - sanity check */
-            if ( idx != locator->count - 1 )
-            {
-                xcpmd_log(LOG_ERR, "SMBIOS missing EOT at end\n");
-                return NULL;
-            }
-        }
-
-        ptr = tail;
-    }
-
-    return table;
+    return buf;
 }
 
 static void setup_software_bcl_and_input_quirks(void)
 {
-    struct smbios_locator locator;
-    struct smbios_system_info *system_info;
-    struct smbios_bios_info *bios_info;
-    uint32_t length;
-    char *manufacturer, *product, *vendor, *bios_version;
+    char *manufacturer, *product, *bios_version;
     uint32_t pci_val;
     uint16_t pci_vendor_id, pci_gmch_id;
-    int rc;
 
-    memset(&locator, 0x0, sizeof (locator));
-
-    /* Read SMBIOS information */
-    rc = smbios_locate_structures(&locator);
-    if ( rc != 0 )
-    {
-        xcpmd_log(LOG_WARNING, "%s failed to find SMBIOS info\n", __FUNCTION__);
-        goto out;
+    manufacturer = smbios_read_entry("sys_vendor");
+    if (manufacturer == NULL) {
+        manufacturer = strdup("Unknown manufacturer");
     }
-
-    system_info =
-        smbios_locate_structure_instance(&locator, SMBIOS_TYPE_SYSTEM_INFO, 1, &length);
-    if ( system_info == NULL )
-    {
-        xcpmd_log(LOG_WARNING, "%s could not locate SMBIOS_TYPE_SYSTEM_INFO table??\n", __FUNCTION__);
-        goto out;
+    product = smbios_read_entry("product_name");
+    if (product == NULL) {
+        product = strdup("Unknown product");
     }
-
-    manufacturer = (char *)system_info + system_info->header.length;
-    product = manufacturer + strlen(manufacturer) + 1;
-
-    bios_info =
-        smbios_locate_structure_instance(&locator, SMBIOS_TYPE_BIOS_INF0, 1, &length);
-    if ( bios_info == NULL )
-    {
-        xcpmd_log(LOG_WARNING, "%s could not locate SMBIOS_TYPE_BIOS_INF0 table??\n", __FUNCTION__);
-        goto out;
+    bios_version = smbios_read_entry("bios_version");
+    if (bios_version == NULL) {
+        bios_version = strdup("Unknown bios_version");
     }
-
-    vendor = (char *)bios_info + bios_info->header.length;
-    bios_version = vendor + strlen(vendor) + 1;
 
     /* Read PCI information */
     pci_val = pci_host_read_dword(0, 0, 0, PCI_VENDOR_DEVICE_OFFSET);
@@ -430,8 +205,9 @@ static void setup_software_bcl_and_input_quirks(void)
     xcpmd_log(LOG_INFO, "Platform manufacturer: %s product: %s BIOS version: %s\n", manufacturer, product, bios_version);
 
 out:
-    if ( locator.addr != 0 )
-        unmap_phys_mem(locator.addr, locator.length);
+    free(product);
+    free(manufacturer);
+    free(bios_version);
 }
 
 /* todo:

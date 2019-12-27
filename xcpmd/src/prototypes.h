@@ -70,7 +70,5 @@ int find_efi_entry_location(const char *efi_entry, uint32_t length, size_t *loca
 int pci_lib_init(void);
 uint32_t pci_host_read_dword(int bus, int dev, int fn, uint32_t addr);
 void pci_lib_cleanup(void);
-uint8_t *map_phys_mem(size_t phys_addr, size_t length);
-void unmap_phys_mem(uint8_t *addr, size_t length);
 unsigned int xenstore_read_uint(char *path);
 void daemonize(void);
