@@ -1,35 +1,10 @@
-#
-# Copyright (c) 2014 Citrix Systems, Inc.
-# 
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
-
-#
-# Makefile.am:
-#
-# $Id:$
-#
-# $Log:$
-#
-#
-
-INCLUDES =  ${LIBNL_INC} ${LIBNL_ROUTE_INC}
-
-AM_CFLAGS=-g -W -Wall
-
 bin_PROGRAMS = carrier-detect
 
-carrier_detect_LDFLAGS = ${LIBNL_LIB} ${LIBNL_ROUTE_LIB}
+carrier_detect_CFLAGS = \
+	-g -W -Wall -Werror \
+	$(LIBNL_CFLAGS) \
+	$(LIBNL_ROUTE_CFLAGS)
 
+carrier_detect_LDADD = \
+	$(LIBNL_LIBS) \
+	$(LIBNL_ROUTE_LIBS)
