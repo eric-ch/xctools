@@ -24,6 +24,7 @@
 
 #include "project.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,6 +77,7 @@ struct qmp_helper_state {
     xen_argo_addr_t local_addr;
     int listen_fd;
     int unix_fd;
+    bool connected;
     uint8_t msg_buf[ARGO_CHARDRV_RING_SIZE];
 };
 
@@ -104,6 +106,40 @@ static void qmph_exit_cleanup(int exit_code)
     exit(exit_code);
 }
 
+static int qmp_magic_message(struct qmp_helper_state *pqhs,
+                             const bool connect)
+{
+
+    int ret;
+    const char *magic = connect ? ARGO_MAGIC_CONNECT : ARGO_MAGIC_DISCONNECT;
+    const char *op = connect ? "connect" : "disconnect";
+    const int sz = strlen(magic);
+
+    if (pqhs->connected == connect) {
+        QMPH_LOG("WARN: %s called when already %sed!\n", op, op);
+        return 0;
+    }
+
+    ret = argo_sendto(pqhs->argo_fd, magic, sz, 0, &pqhs->remote_addr);
+    if (ret == sz) {
+        pqhs->connected = connect;
+    } else {
+        QMPH_LOG("ERROR: %s argo_sendto ret %d != %d\n", op, ret, sz);
+    }
+
+    return ret;
+}
+
+static int qmp_connect(struct qmp_helper_state *pqhs)
+{
+    return qmp_magic_message(pqhs, true);
+}
+
+static int qmp_disconnect(struct qmp_helper_state *pqhs)
+{
+    return qmp_magic_message(pqhs, false);
+}
+
 static int qmph_unix_to_argo(struct qmp_helper_state *pqhs)
 {
     int ret, rcv;
@@ -116,8 +152,7 @@ static int qmph_unix_to_argo(struct qmp_helper_state *pqhs)
     }
     else if (rcv == 0) {
         QMPH_LOG("read(unix_fd) recieved EOF, telling qemu.\n");
-        ret = argo_sendto(pqhs->argo_fd, ARGO_MAGIC_DISCONNECT,
-                         4, 0, &pqhs->remote_addr);
+        qmp_disconnect(pqhs);
         close(pqhs->unix_fd);
         pqhs->unix_fd = -1;
         return 0;
@@ -352,8 +387,7 @@ int main(int argc, char *argv[])
                 qmph_exit_cleanup(ret);
             }
             QMPH_LOG("Accepted the connection fd: %d, telling qemu.", qhs.unix_fd);
-            ret = argo_sendto(qhs.argo_fd, ARGO_MAGIC_CONNECT,
-                              4, 0, &qhs.remote_addr);
+            qmp_connect(&qhs);
         }
 
         if (FD_ISSET(qhs.unix_fd, &rfds)) {
