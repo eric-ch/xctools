@@ -173,7 +173,7 @@ static int qmph_unix_to_argo(struct qmp_helper_state *pqhs)
         return rcv;
     }
     else if (rcv == 0) {
-        QMPH_LOG("read(unix_fd) recieved EOF, telling qemu.\n");
+        QMPH_LOG("read(unix_fd) received EOF, telling qemu.\n");
         qmp_disconnect(pqhs);
         close(pqhs->unix_fd);
         pqhs->unix_fd = -1;
