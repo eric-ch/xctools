@@ -106,6 +106,28 @@ static void qmph_exit_cleanup(int exit_code)
     exit(exit_code);
 }
 
+static int argo_sendto_all(int argo_fd, const char *buf, const int size,
+                           xen_argo_addr_t *addr)
+{
+    int sent = 0;
+    int ret;
+
+    while (sent < size) {
+        ret = argo_sendto(argo_fd, buf + sent, size - sent, 0, addr);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+
+            return -1;
+        }
+
+        sent += ret;
+    }
+
+    return ret;
+}
+
 static int qmp_magic_message(struct qmp_helper_state *pqhs,
                              const bool connect)
 {
@@ -120,11 +142,11 @@ static int qmp_magic_message(struct qmp_helper_state *pqhs,
         return 0;
     }
 
-    ret = argo_sendto(pqhs->argo_fd, magic, sz, 0, &pqhs->remote_addr);
+    ret = argo_sendto_all(pqhs->argo_fd, magic, sz, &pqhs->remote_addr);
     if (ret == sz) {
         pqhs->connected = connect;
     } else {
-        QMPH_LOG("ERROR: %s argo_sendto ret %d != %d\n", op, ret, sz);
+        QMPH_LOG("ERROR: %s failed\n", op);
     }
 
     return ret;
@@ -163,6 +185,13 @@ static int qmph_unix_to_argo(struct qmp_helper_state *pqhs)
     if (ret != rcv) {
         QMPH_LOG("ERROR argo_sendto() failed (%s) - %d %d.\n",
                  strerror(errno), ret, rcv);
+        if (ret == -1) {
+            QMPH_LOG("Closing unix socket");
+            close(pqhs->unix_fd);
+            pqhs->unix_fd = -1;
+            pqhs->connected = false;
+        }
+
         return -1;
     }
 
@@ -387,7 +416,13 @@ int main(int argc, char *argv[])
                 qmph_exit_cleanup(ret);
             }
             QMPH_LOG("Accepted the connection fd: %d, telling qemu.", qhs.unix_fd);
-            qmp_connect(&qhs);
+            ret = qmp_connect(&qhs);
+            if (ret == -1) {
+                QMPH_LOG("ERROR qmp_connect refused: closing unix socket\n");
+                /* close connection on the UNIX socket */
+                close(qhs.unix_fd);
+                qhs.unix_fd = -1;
+            }
         }
 
         if (FD_ISSET(qhs.unix_fd, &rfds)) {
