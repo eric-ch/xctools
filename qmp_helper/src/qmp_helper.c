@@ -24,6 +24,7 @@
 
 #include "project.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,6 +77,7 @@ struct qmp_helper_state {
     xen_argo_addr_t local_addr;
     int listen_fd;
     int unix_fd;
+    bool connected;
     uint8_t msg_buf[ARGO_CHARDRV_RING_SIZE];
 };
 
@@ -104,6 +106,62 @@ static void qmph_exit_cleanup(int exit_code)
     exit(exit_code);
 }
 
+static int argo_sendto_all(int argo_fd, const char *buf, const int size,
+                           xen_argo_addr_t *addr)
+{
+    int sent = 0;
+    int ret;
+
+    while (sent < size) {
+        ret = argo_sendto(argo_fd, buf + sent, size - sent, 0, addr);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+
+            return -1;
+        }
+
+        sent += ret;
+    }
+
+    return ret;
+}
+
+static int qmp_magic_message(struct qmp_helper_state *pqhs,
+                             const bool connect)
+{
+
+    int ret;
+    const char *magic = connect ? ARGO_MAGIC_CONNECT : ARGO_MAGIC_DISCONNECT;
+    const char *op = connect ? "connect" : "disconnect";
+    const int sz = strlen(magic);
+
+    if (pqhs->connected == connect) {
+        QMPH_LOG("WARN: %s called when already %sed!\n", op, op);
+        return 0;
+    }
+
+    ret = argo_sendto_all(pqhs->argo_fd, magic, sz, &pqhs->remote_addr);
+    if (ret == sz) {
+        pqhs->connected = connect;
+    } else {
+        QMPH_LOG("ERROR: %s failed\n", op);
+    }
+
+    return ret;
+}
+
+static int qmp_connect(struct qmp_helper_state *pqhs)
+{
+    return qmp_magic_message(pqhs, true);
+}
+
+static int qmp_disconnect(struct qmp_helper_state *pqhs)
+{
+    return qmp_magic_message(pqhs, false);
+}
+
 static int qmph_unix_to_argo(struct qmp_helper_state *pqhs)
 {
     int ret, rcv;
@@ -115,9 +173,8 @@ static int qmph_unix_to_argo(struct qmp_helper_state *pqhs)
         return rcv;
     }
     else if (rcv == 0) {
-        QMPH_LOG("read(unix_fd) recieved EOF, telling qemu.\n");
-        ret = argo_sendto(pqhs->argo_fd, ARGO_MAGIC_DISCONNECT,
-                         4, 0, &pqhs->remote_addr);
+        QMPH_LOG("read(unix_fd) received EOF, telling qemu.\n");
+        qmp_disconnect(pqhs);
         close(pqhs->unix_fd);
         pqhs->unix_fd = -1;
         return 0;
@@ -128,6 +185,13 @@ static int qmph_unix_to_argo(struct qmp_helper_state *pqhs)
     if (ret != rcv) {
         QMPH_LOG("ERROR argo_sendto() failed (%s) - %d %d.\n",
                  strerror(errno), ret, rcv);
+        if (ret == -1) {
+            QMPH_LOG("Closing unix socket");
+            close(pqhs->unix_fd);
+            pqhs->unix_fd = -1;
+            pqhs->connected = false;
+        }
+
         return -1;
     }
 
@@ -352,8 +416,13 @@ int main(int argc, char *argv[])
                 qmph_exit_cleanup(ret);
             }
             QMPH_LOG("Accepted the connection fd: %d, telling qemu.", qhs.unix_fd);
-            ret = argo_sendto(qhs.argo_fd, ARGO_MAGIC_CONNECT,
-                              4, 0, &qhs.remote_addr);
+            ret = qmp_connect(&qhs);
+            if (ret == -1) {
+                QMPH_LOG("ERROR qmp_connect refused: closing unix socket\n");
+                /* close connection on the UNIX socket */
+                close(qhs.unix_fd);
+                qhs.unix_fd = -1;
+            }
         }
 
         if (FD_ISSET(qhs.unix_fd, &rfds)) {
