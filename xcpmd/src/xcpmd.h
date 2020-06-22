@@ -36,8 +36,6 @@
 #define UINT_FMT "%x"
 #endif
 
-#define SURFMAN_SERVICE     "com.citrix.xenclient.surfman"
-#define SURFMAN_PATH        "/"
 #define XCPMD_SERVICE       "com.citrix.xenclient.xcpmd"
 #define XCPMD_PATH          "/"
 #define XENMGR_SERVICE      "com.citrix.xenclient.xenmgr"

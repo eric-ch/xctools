@@ -57,7 +57,7 @@ xcpmd_LDFLAGS = -rdynamic
 #
 # RPC generated stubs.
 #
-DBUS_CLIENT_IDLS = surfman xenmgr xenmgr_vm db
+DBUS_CLIENT_IDLS = xenmgr xenmgr_vm db
 DBUS_SERVER_IDLS = xcpmd
 
 BUILT_SOURCES = \
