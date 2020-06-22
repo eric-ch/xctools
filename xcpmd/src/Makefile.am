@@ -26,7 +26,7 @@
 CPROTO=cproto
 INCLUDES =  ${LIBXC_INC} ${LIBXCDBUS_INC} ${LIBXENACPI_INC} ${DBUS_GLIB_1_INC} ${GLIB_20_INC} ${LIBXCXENSTORE_CFLAGS}
 
-DBUS_CLIENT_IDLS=surfman xenmgr xenmgr_vm db
+DBUS_CLIENT_IDLS=xenmgr xenmgr_vm db
 DBUS_SERVER_IDLS=xcpmd
 
 noinst_HEADERS=project.h prototypes.h xcpmd.h rules.h modules.h default-inputs-module.h list.h battery.h parser.h db-helper.h vm-utils.h
