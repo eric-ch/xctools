@@ -86,7 +86,6 @@
 #include <xenctrl.h>
 #include <event.h>
 
-#include "rpcgen/surfman_client.h"
 #include "rpcgen/xcpmd_server_obj.h"
 
 #include "prototypes.h"
