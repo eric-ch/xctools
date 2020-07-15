@@ -150,6 +150,7 @@ struct condition_type {
     char * prototype;
     char * pretty_prototype;
     struct ev_wrapper * event;
+    void (* on_instantiate)(struct condition *); //Called whenever this condition_type is instantiated.
 };
 
 
@@ -219,7 +220,7 @@ extern struct db_var db_vars;
 
 //Function prototypes
 struct ev_wrapper * add_event(char * event_name, bool is_stateless, enum arg_type value_type, union arg_u reset_value);
-struct condition_type * add_condition_type(char * name, bool (* check)(struct ev_wrapper *, struct arg_node *), char * prototype, char * pretty_prototype, struct ev_wrapper * event);
+struct condition_type * add_condition_type(char * name, bool (* check)(struct ev_wrapper *, struct arg_node *), char * prototype, char * pretty_prototype, struct ev_wrapper * event, void (*on_instantiate)(struct condition *));
 struct action_type * add_action_type(char * name, void (* action_func)(struct arg_node *), char * prototype, char * pretty_prototype);
 
 struct rule * new_rule(char * id);

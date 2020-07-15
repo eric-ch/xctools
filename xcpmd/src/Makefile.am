@@ -81,6 +81,8 @@ pkglib_LTLIBRARIES = \
 	acpi-module.la \
 	default-actions-module.la \
 	default-inputs-module.la \
+	displayhandler-module.la \
+	idle-detect-module.la \
 	vm-actions-module.la \
 	vm-events-module.la
 
@@ -104,6 +106,20 @@ default_actions_module_la_SOURCES = \
 	rules.h
 default_actions_module_la_LDFLAGS = -avoid-version -module -shared
 
+displayhandler_module_la_SOURCES = \
+	displayhandler-module.c \
+	rules.h
+displayhandler_module_la_LDFLAGS = -avoid-version -module -shared
+
+idle_detect_module_la_SOURCES = \
+	idle-detect-module.c \
+	idle-detect-module.h \
+	project.h \
+	rpcgen/input_daemon_client.h \
+	rules.h \
+	vm-utils.h \
+	xcpmd.h
+idle_detect_module_la_LDFLAGS = -avoid-version -module -shared
 
 vm_actions_module_la_SOURCES = \
 	vm-actions-module.c \
