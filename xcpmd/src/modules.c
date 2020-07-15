@@ -45,9 +45,11 @@
 //Private data
 static char * _module_list[] = {
     MODULE_PATH "acpi-module.so",
-    MODULE_PATH "vm-actions-module.so",
     MODULE_PATH "default-actions-module.so",
-    MODULE_PATH "vm-events-module.so"
+    MODULE_PATH "displayhandler-module.so",
+    MODULE_PATH "idle-detect-module.so",
+    MODULE_PATH "vm-actions-module.so",
+    MODULE_PATH "vm-events-module.so",
 };
 
 

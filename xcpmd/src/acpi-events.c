@@ -34,19 +34,12 @@
 #include "rules.h"
 #include "acpi-module.h"
 #include "battery.h"
+#include "rpcgen/vglass_client.h"
 
 static int acpi_events_fd = -1;
 static struct event acpi_event;
 
 static struct ev_wrapper ** acpi_event_table;
-
-void adjust_brightness(int increase, int force) {
-    (void) increase;
-    if (force || (pm_quirks & PM_QUIRK_SW_ASSIST_BCL) || (pm_quirks & PM_QUIRK_HP_HOTKEY_INPUT)) {
-        xcpmd_log(LOG_WARNING, "Brightness adjustment not implemented yet.");
-    }
-}
-
 
 int get_ac_adapter_status(void) {
 
@@ -250,13 +243,15 @@ static void handle_bcl_event(enum BCL_CMD cmd) {
         xcpmd_log(LOG_INFO, "Brightness up button pressed event\n");
         xenstore_write("1", XS_BCL_CMD);
         xenstore_write("1", XS_BCL_EVENT_PATH);
-        adjust_brightness(1, 0);
+        mil_af_secureview_vglass_increase_brightness_(xcdbus_conn,
+                "mil.af.secureview.vglass", "/mil/af/secureview/vglass");
     }
     else if (cmd == BCL_DOWN) {
         xcpmd_log(LOG_INFO, "Brightness down button pressed event\n");
         xenstore_write("2", XS_BCL_CMD);
         xenstore_write("1", XS_BCL_EVENT_PATH);
-        adjust_brightness(0, 0);
+        mil_af_secureview_vglass_increase_brightness_(xcdbus_conn,
+                "mil.af.secureview.vglass", "/mil/af/secureview/vglass");
     }
     else if (cmd == BCL_CYCLE) {
         //Qemu doesn't currently support this key, but these can be uncommented

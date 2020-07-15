@@ -141,7 +141,7 @@ struct ev_wrapper * add_event(char * event_name, bool is_stateless, enum arg_typ
 //Allocates memory!
 //Creates a new condition_type and adds it to the shared list of condition_types.
 //Returns the new condition type.
-struct condition_type * add_condition_type(char * name, bool (* check)(struct ev_wrapper *, struct arg_node *), char * prototype, char * pretty_prototype, struct ev_wrapper * event) {
+struct condition_type * add_condition_type(char * name, bool (* check)(struct ev_wrapper *, struct arg_node *), char * prototype, char * pretty_prototype, struct ev_wrapper * event, void (* on_instantiate)(struct condition *)) {
 
     struct condition_type * new_condition_type = (struct condition_type *)malloc(sizeof(struct condition_type));
     if (new_condition_type == NULL) {
@@ -154,6 +154,7 @@ struct condition_type * add_condition_type(char * name, bool (* check)(struct ev
     new_condition_type->prototype = prototype;
     new_condition_type->pretty_prototype = pretty_prototype;
     new_condition_type->event = event;
+    new_condition_type->on_instantiate = on_instantiate;
 
     list_add_tail(&(new_condition_type->list), &(condition_types.list));
 
@@ -224,7 +225,6 @@ struct condition * new_condition(struct condition_type * type) {
         xcpmd_log(LOG_ERR, "Failed to allocate memory\n");
         return NULL;
     }
-
 
     new_condition->type = type;
     new_condition->is_true = false;
@@ -334,6 +334,11 @@ void add_condition_to_rule(struct rule * rule, struct condition * condition) {
 
     condition->rule = rule;
     list_add_tail(&(condition->list), &(rule->conditions.list));
+
+    //Perform any initialization tasks that need doing.
+    if (condition->type->on_instantiate) {
+        condition->type->on_instantiate(condition);
+    }
 }
 
 
