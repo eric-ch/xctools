@@ -74,6 +74,7 @@ struct cond_table_row {
     char * prototype;
     char * pretty_prototype;
     unsigned int event_index;
+    void (* on_instantiate)(struct condition *);
 };
 
 
@@ -88,24 +89,24 @@ static struct event_data_row event_data[] = {
 };
 
 static struct cond_table_row condition_data[] = {
-    {"whenAnyVmCreating"   , any_vm_creating         , "n" , "void"        , EVENT_VM_CREATING  } ,
-    {"whenAnyVmStopping"   , any_vm_stopping         , "n" , "void"        , EVENT_VM_STOPPING  } ,
-    {"whenAnyVmRebooting"  , any_vm_rebooting        , "n" , "void"        , EVENT_VM_REBOOTING } ,
-    {"whenAnyVmRunning"    , any_vm_running          , "n" , "void"        , EVENT_VM_RUNNING   } ,
-    {"whenAnyVmStopped"    , any_vm_stopped          , "n" , "void"        , EVENT_VM_STOPPED   } ,
-    {"whenAnyVmPaused"     , any_vm_paused           , "n" , "void"        , EVENT_VM_PAUSED    } ,
-    {"whenVmUuidCreating"  , vm_with_uuid_creating   , "s" , "string uuid" , EVENT_VM_CREATING  } ,
-    {"whenVmUuidStopping"  , vm_with_uuid_stopping   , "s" , "string uuid" , EVENT_VM_STOPPING  } ,
-    {"whenVmUuidRebooting" , vm_with_uuid_rebooting  , "s" , "string uuid" , EVENT_VM_REBOOTING } ,
-    {"whenVmUuidRunning"   , vm_with_uuid_running    , "s" , "string uuid" , EVENT_VM_RUNNING   } ,
-    {"whenVmUuidStopped"   , vm_with_uuid_stopped    , "s" , "string uuid" , EVENT_VM_STOPPED   } ,
-    {"whenVmUuidPaused"    , vm_with_uuid_paused     , "s" , "string uuid" , EVENT_VM_PAUSED    } ,
-    {"whenVmCreating"      , vm_with_name_creating   , "s" , "string name" , EVENT_VM_CREATING  } ,
-    {"whenVmStopping"      , vm_with_name_stopping   , "s" , "string name" , EVENT_VM_STOPPING  } ,
-    {"whenVmRebooting"     , vm_with_name_rebooting  , "s" , "string name" , EVENT_VM_REBOOTING } ,
-    {"whenVmRunning"       , vm_with_name_running    , "s" , "string name" , EVENT_VM_RUNNING   } ,
-    {"whenVmStopped"       , vm_with_name_stopped    , "s" , "string name" , EVENT_VM_STOPPED   } ,
-    {"whenVmPaused"        , vm_with_name_paused     , "s" , "string name" , EVENT_VM_PAUSED    }
+    {"whenAnyVmCreating"   , any_vm_creating         , "n" , "void"        , EVENT_VM_CREATING  , NULL } ,
+    {"whenAnyVmStopping"   , any_vm_stopping         , "n" , "void"        , EVENT_VM_STOPPING  , NULL } ,
+    {"whenAnyVmRebooting"  , any_vm_rebooting        , "n" , "void"        , EVENT_VM_REBOOTING , NULL } ,
+    {"whenAnyVmRunning"    , any_vm_running          , "n" , "void"        , EVENT_VM_RUNNING   , NULL } ,
+    {"whenAnyVmStopped"    , any_vm_stopped          , "n" , "void"        , EVENT_VM_STOPPED   , NULL } ,
+    {"whenAnyVmPaused"     , any_vm_paused           , "n" , "void"        , EVENT_VM_PAUSED    , NULL } ,
+    {"whenVmUuidCreating"  , vm_with_uuid_creating   , "s" , "string uuid" , EVENT_VM_CREATING  , NULL } ,
+    {"whenVmUuidStopping"  , vm_with_uuid_stopping   , "s" , "string uuid" , EVENT_VM_STOPPING  , NULL } ,
+    {"whenVmUuidRebooting" , vm_with_uuid_rebooting  , "s" , "string uuid" , EVENT_VM_REBOOTING , NULL } ,
+    {"whenVmUuidRunning"   , vm_with_uuid_running    , "s" , "string uuid" , EVENT_VM_RUNNING   , NULL } ,
+    {"whenVmUuidStopped"   , vm_with_uuid_stopped    , "s" , "string uuid" , EVENT_VM_STOPPED   , NULL } ,
+    {"whenVmUuidPaused"    , vm_with_uuid_paused     , "s" , "string uuid" , EVENT_VM_PAUSED    , NULL } ,
+    {"whenVmCreating"      , vm_with_name_creating   , "s" , "string name" , EVENT_VM_CREATING  , NULL } ,
+    {"whenVmStopping"      , vm_with_name_stopping   , "s" , "string name" , EVENT_VM_STOPPING  , NULL } ,
+    {"whenVmRebooting"     , vm_with_name_rebooting  , "s" , "string name" , EVENT_VM_REBOOTING , NULL } ,
+    {"whenVmRunning"       , vm_with_name_running    , "s" , "string name" , EVENT_VM_RUNNING   , NULL } ,
+    {"whenVmStopped"       , vm_with_name_stopped    , "s" , "string name" , EVENT_VM_STOPPED   , NULL } ,
+    {"whenVmPaused"        , vm_with_name_paused     , "s" , "string name" , EVENT_VM_PAUSED    , NULL }
 };
 
 static unsigned int num_events = sizeof(event_data) / sizeof(event_data[0]);
@@ -138,7 +139,7 @@ __attribute__((constructor)) static void init_module() {
     //Add all condition_types to the condition_type list.
     for (i=0; i < num_conditions; ++i) {
         struct cond_table_row entry = condition_data[i];
-        add_condition_type(entry.name, entry.func, entry.prototype, entry.pretty_prototype, _vm_event_table[entry.event_index]);
+        add_condition_type(entry.name, entry.func, entry.prototype, entry.pretty_prototype, _vm_event_table[entry.event_index], entry.on_instantiate);
     }
 
     //Set up a match and filter to get signals.

@@ -53,6 +53,7 @@ struct cond_table_row {
     char * prototype;
     char * pretty_prototype;
     unsigned int event_index;
+    void (* on_instantiate)(struct condition *);
 };
 
 
@@ -62,7 +63,7 @@ static const struct event_data_row event_data[] = {
 };
 
 static const struct cond_table_row condition_table[] = {
-    {"dummy_condition", dummy_condition, "n", "void", DUMMY_EVENT}
+    {"dummy_condition", dummy_condition, "n", "void", DUMMY_EVENT, NULL}
 };
 
 static const unsigned int num_events = sizeof(event_data) / sizeof(event_data[0]);
@@ -87,7 +88,7 @@ static void __attribute__((constructor)) init_module() {
 
     for (i=0; i < condition_table_size; ++i) {
         struct cond_table_row entry = condition_table[i];
-        add_condition_type(entry.name, entry.func, entry.prototype, entry.pretty_prototype, default_event_table[entry.event_index]);
+        add_condition_type(entry.name, entry.func, entry.prototype, entry.pretty_prototype, default_event_table[entry.event_index], entry.on_instantiate);
     }
 
 }
