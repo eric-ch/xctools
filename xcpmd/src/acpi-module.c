@@ -70,6 +70,7 @@ struct cond_table_row {
     char * prototype;
     char * pretty_prototype;
     unsigned int event_index;
+    void (* on_instantiate)(struct condition *);
 };
 
 
@@ -89,24 +90,24 @@ static struct event_data_row event_data[] = {
 
 
 static struct cond_table_row condition_data[] = {
-    {"onBacklightUpBtn"            , bcl_up_pressed               , "n"    , "void"                        , EVENT_BCL         } ,
-    {"onBacklightDownBtn"          , bcl_down_pressed             , "n"    , "void"                        , EVENT_BCL         } ,
-    {"onPowerBtn"                  , pbtn_pressed                 , "n"    , "void"                        , EVENT_PWR_BTN     } ,
-    {"onSleepBtn"                  , sbtn_pressed                 , "n"    , "void"                        , EVENT_SLP_BTN     } ,
-    {"onSuspendBtn"                , susp_pressed                 , "n"    , "void"                        , EVENT_SUSP_BTN    } ,
-    {"whileLidClosed"              , lid_closed                   , "n"    , "void"                        , EVENT_LID         } ,
-    {"whileLidOpen"                , lid_open                     , "n"    , "void"                        , EVENT_LID         } ,
-    {"whileUsingAc"                , on_ac                        , "n"    , "void"                        , EVENT_ON_AC       } ,
-    {"whileUsingBatt"              , on_battery                   , "n"    , "void"                        , EVENT_ON_AC       } ,
-    {"whileInTabletMode"           , tablet_mode                  , "n"    , "void"                        , EVENT_TABLET_MODE } ,
-    {"whileNotInTabletMode"        , non_tablet_mode              , "n"    , "void"                        , EVENT_TABLET_MODE } ,
-    {"whileBattGreaterThan"        , battery_greater_than         , "i, i" , "int battNum, int percentage" , EVENT_BATT_STATUS } ,
-    {"whileBattLessThan"           , battery_less_than            , "i, i" , "int battNum, int percentage" , EVENT_BATT_STATUS } ,
-    {"whileBattEqualTo"            , battery_equal_to             , "i, i" , "int battNum, int percentage" , EVENT_BATT_STATUS } ,
-    {"whileBattPresent"            , battery_present              , "i"    , "int battNum"                 , EVENT_BATT_INFO   } ,
-    {"whileOverallBattGreaterThan" , overall_battery_greater_than , "i"    , "int percentage"              , EVENT_BATT_STATUS } ,
-    {"whileOverallBattLessThan"    , overall_battery_less_than    , "i"    , "int percentage"              , EVENT_BATT_STATUS } ,
-    {"whileOverallBattEqualTo"     , overall_battery_equal_to     , "i"    , "int percentage"              , EVENT_BATT_STATUS }
+    {"onBacklightUpBtn"            , bcl_up_pressed               , "n"    , "void"                        , EVENT_BCL         , NULL } ,
+    {"onBacklightDownBtn"          , bcl_down_pressed             , "n"    , "void"                        , EVENT_BCL         , NULL } ,
+    {"onPowerBtn"                  , pbtn_pressed                 , "n"    , "void"                        , EVENT_PWR_BTN     , NULL } ,
+    {"onSleepBtn"                  , sbtn_pressed                 , "n"    , "void"                        , EVENT_SLP_BTN     , NULL } ,
+    {"onSuspendBtn"                , susp_pressed                 , "n"    , "void"                        , EVENT_SUSP_BTN    , NULL } ,
+    {"whileLidClosed"              , lid_closed                   , "n"    , "void"                        , EVENT_LID         , NULL } ,
+    {"whileLidOpen"                , lid_open                     , "n"    , "void"                        , EVENT_LID         , NULL } ,
+    {"whileUsingAc"                , on_ac                        , "n"    , "void"                        , EVENT_ON_AC       , NULL } ,
+    {"whileUsingBatt"              , on_battery                   , "n"    , "void"                        , EVENT_ON_AC       , NULL } ,
+    {"whileInTabletMode"           , tablet_mode                  , "n"    , "void"                        , EVENT_TABLET_MODE , NULL } ,
+    {"whileNotInTabletMode"        , non_tablet_mode              , "n"    , "void"                        , EVENT_TABLET_MODE , NULL } ,
+    {"whileBattGreaterThan"        , battery_greater_than         , "i, i" , "int battNum, int percentage" , EVENT_BATT_STATUS , NULL } ,
+    {"whileBattLessThan"           , battery_less_than            , "i, i" , "int battNum, int percentage" , EVENT_BATT_STATUS , NULL } ,
+    {"whileBattEqualTo"            , battery_equal_to             , "i, i" , "int battNum, int percentage" , EVENT_BATT_STATUS , NULL } ,
+    {"whileBattPresent"            , battery_present              , "i"    , "int battNum"                 , EVENT_BATT_INFO   , NULL } ,
+    {"whileOverallBattGreaterThan" , overall_battery_greater_than , "i"    , "int percentage"              , EVENT_BATT_STATUS , NULL } ,
+    {"whileOverallBattLessThan"    , overall_battery_less_than    , "i"    , "int percentage"              , EVENT_BATT_STATUS , NULL } ,
+    {"whileOverallBattEqualTo"     , overall_battery_equal_to     , "i"    , "int percentage"              , EVENT_BATT_STATUS , NULL }
 };
 
 static unsigned int num_conditions = sizeof(condition_data) / sizeof(condition_data[0]);
@@ -140,7 +141,7 @@ __attribute__((constructor)) static void init_module() {
     //Add all condition_types to the condition_type list.
     for (i=0; i < num_conditions; ++i) {
         struct cond_table_row entry = condition_data[i];
-        add_condition_type(entry.name, entry.func, entry.prototype, entry.pretty_prototype, _acpi_event_table[entry.event_index]);
+        add_condition_type(entry.name, entry.func, entry.prototype, entry.pretty_prototype, _acpi_event_table[entry.event_index], entry.on_instantiate);
     }
 }
 

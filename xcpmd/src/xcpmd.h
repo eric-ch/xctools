@@ -43,6 +43,8 @@
 #define XENMGR_PATH         "/"
 #define DB_SERVICE          "com.citrix.xenclient.db"
 #define DB_PATH             "/"
+#define INPUT_SERVICE       "com.citrix.xenclient.input"
+#define INPUT_PATH          "/"
 
 #define PCI_INVALID_VALUE 0xffffffff
 #define EFI_LINE_SIZE     64
