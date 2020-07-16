@@ -57,7 +57,7 @@ xcpmd_LDFLAGS = -rdynamic
 #
 # RPC generated stubs.
 #
-DBUS_CLIENT_IDLS = xenmgr xenmgr_vm db
+DBUS_CLIENT_IDLS = xenmgr xenmgr_vm db vglass input_daemon
 DBUS_SERVER_IDLS = xcpmd
 
 BUILT_SOURCES = \
