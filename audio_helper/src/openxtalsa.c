@@ -574,8 +574,6 @@ int openxt_alsa_mixer_print_selement(Settings *settings)
     int ret = 0;
     int btn = 0;
     long vol = 0;
-    long min = 0;
-    long max = 0;
     char type = 'D';
     bool has_volume = false;
     bool has_switch = false;
@@ -769,7 +767,7 @@ int openxt_alsa_mixer_print_selement(Settings *settings)
     if (snd_mixer_selem_is_enumerated(settings->elem)) {
 
         int i;
-        int idx;
+        unsigned int idx;
         char enum_string[256];
 
         // Tell xenmgr that this data is part of an enum
