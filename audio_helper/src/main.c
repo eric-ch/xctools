@@ -31,6 +31,9 @@
 
 void help(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+
     openxt_info("Usage: %s <options> [commands]\n", argv[0]);
     openxt_info("Available Options:\n");
     openxt_info("    -h, --help             this help\n");

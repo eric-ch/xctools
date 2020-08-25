@@ -518,7 +518,6 @@ void test_alsa(void)
 void test_capture(void)
 {
     int ret;
-    int avail;
     int nread;
     int32_t buffer[1024];
     Settings *capture_settings = NULL;
