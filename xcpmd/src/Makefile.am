@@ -81,7 +81,6 @@ pkglib_LTLIBRARIES = \
 	acpi-module.la \
 	default-actions-module.la \
 	default-inputs-module.la \
-	idle-detect-module.la \
 	vm-actions-module.la \
 	vm-events-module.la
 
