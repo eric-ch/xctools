@@ -14,6 +14,7 @@ missing
 INSTALL
 ltmain.sh
 compile
+m4
 ar-lib
 tags
 

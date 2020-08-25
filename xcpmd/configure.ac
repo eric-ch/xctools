@@ -37,16 +37,9 @@ AC_C_CONST
 AM_PROG_AR
 LT_INIT
 
-# Checks for header files.
-#AC_CHECK_HEADERS([header.h], [], AC_MSG_ERROR([header.h header is missing.]))
-
 # Check for libraries
-AC_SEARCH_LIBS([dlopen], [dl], [], [
-  AC_MSG_ERROR([No provider for function dlopen() (e.g, libdl)])
-])
-AC_SEARCH_LIBS([yajl_tree_parse], [yajl], [], [
-  AC_MSG_ERROR([No provider for function yajl_tree_parse() (e.g, libyajl)])
-])
+AC_SEARCH_LIBS([dlopen], [dl])
+AC_SEARCH_LIBS([yajl_tree_parse], [yajl])
 
 # Required modules.
 PKG_CHECK_MODULES([LIBPCI], [libpci])
