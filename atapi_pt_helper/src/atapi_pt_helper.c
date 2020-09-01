@@ -33,6 +33,7 @@
 #include <linux/bsg.h>
 #include <scsi/sg.h>
 #include <syslog.h>
+#include <stdbool.h>
 
 #include "atapi_pt_argo.h"
 
@@ -78,7 +79,7 @@ do {                                                               \
 #define XEN_ARGO_ROUNDUP(a) roundup((a), XEN_ARGO_MSG_SLOT_SIZE)
 
 #define ARGO_ATAPI_PT_RING_SIZE \
-  (XEN_ARGO_ROUNDUP((((4096)*64) - sizeof(xen_argo_ring_t)-XEN_ARGO_ROUNDUP(1))))
+  (XEN_ARGO_ROUNDUP((((4096)*64) - ARGO_RING_OVERHEAD)))
 
 #define MAX_ARGO_MSG_SIZE (ARGO_ATAPI_PT_RING_SIZE)
 
