@@ -33,12 +33,12 @@
 ///         negative error code on failure
 ///         0 on success
 ///
-int openxt_mixer_ctl_scontrols(int argc, char *argv[])
+int openxt_mixer_ctl_scontrols(void)
 {
     // The original amixer patch did this, were this command was basically the
     // same as scontents. To prevent a potential modification to the tool
     // stack, I left it the same here as well.
-    return openxt_mixer_ctl_scontents(argc, argv);
+    return openxt_mixer_ctl_scontents();
 }
 
 ///
@@ -50,7 +50,7 @@ int openxt_mixer_ctl_scontrols(int argc, char *argv[])
 ///         negative error code on failure
 ///         0 on success
 ///
-int openxt_mixer_ctl_scontents(int argc, char *argv[])
+int openxt_mixer_ctl_scontents(void)
 {
     int ret = 0;
     Settings *settings = NULL;
@@ -95,8 +95,8 @@ int openxt_mixer_parse_name(Settings *settings, char *name)
     char *index = NULL;
 
     // Sanity checks
-    openxt_checkp(name);
-    openxt_checkp(settings);
+    openxt_checkp(name, -EINVAL);
+    openxt_checkp(settings, -EINVAL);
 
     // Figure out if we have an index or not. If we do, we need to
     // split the string.
@@ -124,7 +124,7 @@ int openxt_mixer_parse_name(Settings *settings, char *name)
         settings->selement_index = 0;
 
         // Store the name
-        strncpy(settings->selement_name, name, MAX_NAME_LENGTH);
+        strncpy(settings->selement_name, name, MAX_NAME_LENGTH - 1);
     }
 
     // Done
@@ -203,10 +203,10 @@ int openxt_mixer_ctl_sset(int argc, char *argv[])
             // see if the number is a percentage.
             if (strstr(argv[i], "%") != NULL) {
 
-                char number[256];
+                char number[256] = { 0 };
 
                 // Copy up to the %
-                strncpy(number, strtok(argv[i],"%"), sizeof(number));
+                strncpy(number, strtok(argv[i],"%"), sizeof(number) - 1);
 
                 // Store the percentage
                 percentage = atoi(number);

@@ -29,9 +29,9 @@
 #include <unistd.h>
 #include <getopt.h>
 
-void help(int argc, char *argv[])
+void help(const char *name)
 {
-    openxt_info("Usage: %s <options> [commands]\n", argv[0]);
+    openxt_info("Usage: %s <options> [commands]\n", name);
     openxt_info("Available Options:\n");
     openxt_info("    -h, --help             this help\n");
     openxt_info("    -c, --card N           select the card\n");
@@ -70,7 +70,7 @@ int parse_options(int argc, char *argv[])
 
         switch (c) {
             case 'h':
-                help(argc, argv);
+                help(argv[0]);
                 break;
 
             case 'c':
@@ -91,19 +91,19 @@ int parse_options(int argc, char *argv[])
     if (argc - optind <= 0) {
 
         // Default
-        return openxt_mixer_ctl_scontents(argc, argv);
+        return openxt_mixer_ctl_scontents();
 
     } else {
 
         // Help Menu
-        if (strncmp(argv[optind], "help", 4) == 0) help(argc, argv);
+        if (strncmp(argv[optind], "help", 4) == 0) help(argv[0]);
 
         // Unit Test
         if (strncmp(argv[optind], "unittest", 8) == 0) return openxt_unittest(argc, argv);
 
         // Amixer commands
-        if (strncmp(argv[optind], "scontrols", 9) == 0) return openxt_mixer_ctl_scontrols(argc, argv);
-        if (strncmp(argv[optind], "scontents", 9) == 0) return openxt_mixer_ctl_scontents(argc, argv);
+        if (strncmp(argv[optind], "scontrols", 9) == 0) return openxt_mixer_ctl_scontrols();
+        if (strncmp(argv[optind], "scontents", 9) == 0) return openxt_mixer_ctl_scontents();
         if (strncmp(argv[optind], "sset", 4) == 0) return openxt_mixer_ctl_sset(argc, argv);
         if (strncmp(argv[optind], "sget", 4) == 0) return openxt_mixer_ctl_sget(argc, argv);
 

@@ -51,10 +51,10 @@ typedef struct Settings {
     snd_mixer_elem_t *elem;
 
     int32_t fmt;
-    int32_t freq;
+    uint32_t freq;
     int32_t mode;
     int32_t valid;
-    int32_t nchannels;
+    uint32_t nchannels;
     int32_t sample_size;
 
     char pcm_name[MAX_NAME_LENGTH];

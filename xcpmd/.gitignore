@@ -14,4 +14,13 @@ missing
 INSTALL
 ltmain.sh
 compile
+m4
+ar-lib
+tags
 
+*.d
+*.o
+*.a
+*.la
+*.so
+*.so.*

@@ -23,8 +23,8 @@
 #ifndef OPENXT_MIXERCTL_H
 #define OPENXT_MIXERCTL_H
 
-int openxt_mixer_ctl_scontrols(int argc, char *argv[]);
-int openxt_mixer_ctl_scontents(int argc, char *argv[]);
+int openxt_mixer_ctl_scontrols(void);
+int openxt_mixer_ctl_scontents(void);
 int openxt_mixer_ctl_sset(int argc, char *argv[]);
 int openxt_mixer_ctl_sget(int argc, char *argv[]);
 

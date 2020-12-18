@@ -71,8 +71,6 @@ ArgoConnection *openxt_argo_open(int32_t lport, int32_t ldomid, int32_t rport, i
     // We are now connected
     conn->connected = true;
 
-done:
-
     // Success
     return conn;
 

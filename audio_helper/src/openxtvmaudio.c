@@ -214,7 +214,7 @@ static int openxt_process_capture(void)
 
     // Send the packet.
     ret = openxt_argo_send(conn, &snd_packet);
-    openxt_assert_ret(ret == CAPTURE_ACK_PACKET_LENGTH(nread), ret, ret);
+    openxt_assert_ret((unsigned int)ret == CAPTURE_ACK_PACKET_LENGTH(nread), ret, ret);
 
     // Success
     return 0;
@@ -371,7 +371,7 @@ int openxt_vmaudio(int argc, char *argv[])
 
     // Setup Argo
     conn = openxt_argo_open(OPENXT_AUDIO_PORT, XEN_ARGO_DOMID_ANY, XEN_ARGO_PORT_NONE, stubdomid);
-    openxt_assert_ret(conn != NULL, conn, -EINVAL);
+    openxt_assert_ret(conn != NULL, -errno, -errno);
 
     // Process incoming commands from QEMU in the stubdomain. Once we get a
     // "fini" command from QEMU, we know that we can stop executing.
