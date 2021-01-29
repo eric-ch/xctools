@@ -16,6 +16,7 @@ Makefile
 /src/stamp-h1
 /src/version-num
 /src/version.h
+/INSTALL
 
 *.o
 *.ko
