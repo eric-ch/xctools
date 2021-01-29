@@ -9,4 +9,5 @@ depcomp
 install-sh
 missing
 src/Makefile.in
-src/config.h.in
+src/config.h.in*
+INSTALL
